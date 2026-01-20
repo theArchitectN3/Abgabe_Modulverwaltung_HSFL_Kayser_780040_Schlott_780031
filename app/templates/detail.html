@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row">
+    <!-- LEFT COLUMN: Module Info -->
+    <div class="col-md-8">
+        <div class="card mb-4 shadow-sm">
+            <div class="card-header bg-white py-3">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h4 class="mb-0 fw-bold">{{ modul.title }}</h4>
+                    <span class="badge bg-light text-dark border">{{ modul.code }}</span>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="row mb-4">
+                    <div class="col-md-6">
+                        <small class="text-muted text-uppercase fw-bold">Lecturer</small>
+                        <div class="d-flex align-items-center mt-1">
+                            <i class="bi bi-person-circle fs-4 me-2 text-secondary"></i>
+                            <span class="fs-5">{{ modul.lecturer.full_name if modul.lecturer else 'Unknown' }}</span>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <small class="text-muted text-uppercase fw-bold">ECTS</small>
+                        <div class="fs-5">{{ modul.ects }}</div>
+                    </div>
+                    <div class="col-md-3">
+                        <small class="text-muted text-uppercase fw-bold">Semester</small>
+                        <div class="fs-5">{{ modul.semester }}</div>
+                    </div>
+                </div>
+
+                <hr class="text-muted opacity-25">
+
+                <h6 class="text-muted text-uppercase fw-bold mb-3">Content Description</h6>
+                <div class="p-3 bg-light rounded border-start border-4 border-primary">
+                    {{ modul.description }}
+                </div>
+            </div>
+        </div>
+
+        <!-- History / Audit Log -->
+        <h5 class="mb-3">Change History</h5>
+        <div class="card shadow-sm border-0">
+            <ul class="list-group list-group-flush">
+                {% for entry in modul.history %}
+                <li class="list-group-item">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <span class="fw-bold text-primary">{{ entry.reviewer_role }}</span>
+                            <span class="text-muted mx-2">&bull;</span>
+                            <span>{{ entry.comment }}</span>
+                        </div>
+                        <small class="text-muted">{{ entry.timestamp }}</small>
+                    </div>
+                    {% if entry.decision %}
+                    <span class="badge bg-success bg-opacity-10 text-success rounded-pill mt-1">Approved</span>
+                    {% else %}
+                    <span class="badge bg-danger bg-opacity-10 text-danger rounded-pill mt-1">Changes Required</span>
+                    {% endif %}
+                </li>
+                {% else %}
+                <li class="list-group-item text-muted text-center py-3">No history entries yet.</li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+
+    <!-- RIGHT COLUMN: Actions -->
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm mb-3">
+            <div class="card-header bg-primary text-white">
+                <i class="bi bi-sliders"></i> Workflow Actions
+            </div>
+            <div class="card-body bg-light">
+                <div class="text-center mb-3">
+                    <small class="text-muted">Current Status</small><br>
+                    <span class="badge bg-white text-dark border fs-6 mt-1 px-3 py-2">
+                        {{ modul.status|replace('_', ' ')|title }}
+                    </span>
+                </div>
+                <hr>
+
+                <div class="d-grid gap-2">
+                    <!-- AUTHOR ACTIONS -->
+                    {% if current_role == 'lecturer' and modul.status in ['DRAFT', 'CHANGES_REQUIRED'] %}
+                    <button onclick="postAction('/modules/{{ modul.id }}/submit')" class="btn btn-primary">
+                        Submit for Review
+                    </button>
+                    <a href="/module/{{ modul.id }}/edit?role=lecturer{% if user_id %}&user_id={{ user_id }}{% endif %}" class="btn btn-outline-secondary">
+                        Edit Content
+                    </a>
+                    {% endif %}
+
+                    <!-- REVIEWER ACTIONS -->
+                    {% if (current_role == 'coordinator' and modul.status == 'REVIEW_COORDINATOR') or
+                    (current_role == 'commission' and modul.status == 'REVIEW_COMMISSION') or
+                    (current_role == 'dean' and modul.status == 'REVIEW_DEAN') %}
+
+                    <div class="alert alert-warning small mb-2"><i class="bi bi-exclamation-circle"></i> Action Required</div>
+
+                    <button onclick="postAction('/modules/{{ modul.id }}/approve', {comment: 'Approved by {{ current_role|capitalize }}'})" class="btn btn-success">
+                        Approve Module
+                    </button>
+                    <button onclick="postAction('/modules/{{ modul.id }}/reject', {comment: 'Rejected by {{ current_role|capitalize }} - Please revise'})" class="btn btn-danger">
+                        Reject / Request Changes
+                    </button>
+                    {% endif %}
+
+                    <!-- INFO ONLY -->
+                    {% if modul.status == 'RELEASED' %}
+                    <div class="alert alert-success text-center mb-0"><i class="bi bi-check-circle-fill"></i> Released</div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <a href="/?role={{ current_role }}{% if user_id %}&user_id={{ user_id }}{% endif %}" class="btn btn-outline-secondary w-100">
+            <i class="bi bi-arrow-left"></i> Back to Dashboard
+        </a>
+    </div>
+</div>
+{% endblock %}

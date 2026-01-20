@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-gear-fill"></i> Admin Panel</h2>
+    <a href="/?role={{ current_role }}" class="btn btn-outline-secondary">Back to Dashboard</a>
+</div>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card mb-4">
+            <div class="card-header bg-dark text-white">Manage Users</div>
+            <div class="card-body">
+                <form action="/admin/users" method="post" class="mb-4">
+                    <input type="hidden" name="current_role" value="{{ current_role }}">
+                    <div class="input-group mb-2">
+                        <input type="text" name="username" class="form-control" placeholder="Username" required>
+                        <input type="text" name="full_name" class="form-control" placeholder="Full Name" required>
+                    </div>
+                    <div class="input-group mb-2">
+                        <select name="role_type" class="form-select">
+                            <option value="Student">Student</option>
+                            <option value="Lecturer">Lecturer</option>
+                            <option value="Staff">Staff</option>
+                        </select>
+                        <button type="submit" class="btn btn-dark">Add User</button>
+                    </div>
+                </form>
+
+                <h6 class="text-muted">Existing Users</h6>
+                <ul class="list-group list-group-flush">
+                    {% for user in users %}
+                    <li class="list-group-item d-flex justify-content-between">
+                        <span>{{ user.full_name }} ({{ user.username }})</span>
+                        <span class="badge bg-secondary">{{ user.role }}</span>
+                    </li>
+                    {% else %}
+                    <li class="list-group-item text-muted">No users found.</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header bg-dark text-white">Manage Study Programs</div>
+            <div class="card-body">
+                <form action="/admin/programs" method="post" class="mb-4">
+                    <input type="hidden" name="current_role" value="{{ current_role }}">
+                    <div class="input-group">
+                        <input type="text" name="name" class="form-control" placeholder="Program Name (e.g. B.Sc. AI)" required>
+                        <button type="submit" class="btn btn-dark">Add Program</button>
+                    </div>
+                </form>
+
+                <h6 class="text-muted">Existing Programs</h6>
+                <ul class="list-group list-group-flush">
+                    {% for prog in programs %}
+                    <li class="list-group-item">
+                        <i class="bi bi-book"></i> {{ prog.name }}
+                    </li>
+                    {% else %}
+                    <li class="list-group-item text-muted">No programs found.</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

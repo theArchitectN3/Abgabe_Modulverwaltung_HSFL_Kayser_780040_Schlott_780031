@@ -1,0 +1,320 @@
+{% extends "base.html" %}
+
+{% block content %}
+<!-- Include Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<!-- ========================================= -->
+<!-- 1. STUDENT DASHBOARD                      -->
+<!-- ========================================= -->
+{% if current_role == 'student' %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h3><i class="bi bi-mortarboard"></i> My Study Progress</h3>
+</div>
+
+    {% if not selected_user_id %}
+<div class="alert alert-info text-center p-5">
+    <h4><i class="bi bi-person-badge"></i> Please select a student profile</h4>
+    <p>Select a student from the dropdown in the top navigation bar to view their specific study plan.</p>
+</div>
+    {% else %}
+<div class="row mb-4">
+    <div class="col-md-5">
+        <div class="card h-100 border-start border-4 border-primary">
+            <div class="card-body">
+                <h5 class="text-muted small">Current Program</h5>
+                <h3 class="mb-0">{{ program.name }}</h3>
+                <div class="mt-3">
+                    <span class="badge bg-light text-dark border">Semester: {{ student.current_semester }}</span>
+                    <span class="badge bg-success bg-opacity-75 ms-2">&Oslash; Grade: {{ overall_average }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card h-100 bg-light">
+            <div class="card-body text-center d-flex flex-column justify-content-center">
+                <h5 class="text-muted small">Current Semester Load</h5>
+                <h2 class="text-primary fw-bold display-5">{{ current_semester_load }} <span class="fs-6 text-muted">ECTS</span></h2>
+                <small class="text-success fw-bold"><i class="bi bi-check-circle-fill"></i> Achieved: {{ achieved_ects }} ECTS</small>
+            </div>
+        </div>
+    </div>
+    <!-- Grades Chart -->
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-body">
+                <canvas id="gradesChart" style="max-height: 120px;"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<h5 class="mb-3 text-muted">Curriculum Overview & Grades</h5>
+<div class="accordion" id="curriculum">
+    {% for semester, modules in modules_by_semester.items()|sort %}
+    <div class="accordion-item mb-3 shadow-sm border-0">
+        <h2 class="accordion-header">
+            <button class="accordion-button fw-bold" type="button" data-bs-toggle="collapse" data-bs-target="#sem{{ semester }}">
+                Semester {{ semester }}
+                {% if semester == student.current_semester %}
+                <span class="badge bg-primary ms-2 small">Current</span>
+                {% endif %}
+            </button>
+        </h2>
+        <div id="sem{{ semester }}" class="accordion-collapse collapse {% if semester == student.current_semester %}show{% endif %}">
+            <div class="accordion-body p-0">
+                <table class="table table-hover mb-0 align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th width="10%">Code</th>
+                            <th width="45%">Module Title</th>
+                            <th width="10%">ECTS</th>
+                            <th width="15%">Grade</th>
+                            <th width="20%">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for m in modules %}
+                        <tr>
+                            <td class="font-monospace text-muted">{{ m.code }}</td>
+                            <td class="fw-bold">{{ m.title }}</td>
+                            <td><span class="badge bg-secondary">{{ m.ects }}</span></td>
+                            <td>
+                                {% set g = grades[m.id] %}
+                                {% if g == 'In Progress' %}
+                                <span class="badge bg-info text-dark">In Progress</span>
+                                {% elif g == '-' %}
+                                <span class="text-muted small">Planned</span>
+                                {% else %}
+                                {% if g <= 2.0 %}
+                                <span class="fw-bold text-success">{{ g }} <i class="bi bi-check"></i></span>
+                                {% elif g <= 4.0 %}
+                                <span class="fw-bold text-dark">{{ g }}</span>
+                                {% else %}
+                                <span class="fw-bold text-danger">{{ g }}</span>
+                                {% endif %}
+                                {% endif %}
+                            </td>
+                            <td><a href="/module/{{ m.id }}?role=student" class="btn btn-sm btn-outline-primary rounded-pill px-3">View Details</a></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<!-- Script for Grades Chart -->
+<script>
+        const ctxG = document.getElementById('gradesChart').getContext('2d');
+        new Chart(ctxG, {
+            type: 'bar',
+            data: {
+                labels: {{ chart_labels|tojson }},
+                datasets: [{
+                    label: 'Grade Average',
+                    data: {{ chart_values|tojson }},
+                    backgroundColor: '#198754',
+                    borderRadius: 5
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false }, title: { display: true, text: 'Performance Trend' } },
+                scales: { y: { beginAtZero: false, min: 1.0, max: 5.0, reverse: true } }
+            }
+        });
+</script>
+    {% endif %}
+
+<!-- ========================================= -->
+<!-- 2. LECTURER DASHBOARD                     -->
+<!-- ========================================= -->
+{% elif current_role == 'lecturer' %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h3><i class="bi bi-briefcase"></i> Lecturer Dashboard</h3>
+    {% if selected_user_id %}
+    <a href="/create?role=lecturer&user_id={{ selected_user_id }}" class="btn btn-success shadow-sm"><i class="bi bi-plus-lg"></i> New Module</a>
+    {% endif %}
+</div>
+    {% if not selected_user_id %}
+<div class="alert alert-success text-center p-5 bg-opacity-10 bg-success text-success border-success">
+    <h4><i class="bi bi-person-badge"></i> Please select a lecturer profile</h4>
+</div>
+    {% else %}
+<div class="row g-4">
+    <div class="col-md-4">
+        <div class="card h-100 bg-light border-0">
+            <div class="card-header bg-transparent border-0 fw-bold text-uppercase text-secondary">Drafts / Revisions</div>
+            <div class="card-body">
+                {% for m in drafts %}
+                <div class="card mb-3 shadow-sm border-start border-4 border-warning">
+                    <div class="card-body p-3">
+                        <h6 class="card-title fw-bold mb-1">{{ m.title }}</h6>
+                        <div class="small text-muted mb-2">{{ m.code }} &bull; {{ m.ects }} ECTS</div>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="badge bg-warning text-dark">{{ m.status|replace('_', ' ')|title }}</span>
+                            <a href="/module/{{ m.id }}?role=lecturer" class="btn btn-sm btn-outline-dark stretched-link">Edit</a>
+                        </div>
+                    </div>
+                </div>
+                {% else %}<p class="text-muted small text-center mt-5">No open drafts.</p>{% endfor %}
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card h-100 bg-light border-0">
+            <div class="card-header bg-transparent border-0 fw-bold text-uppercase text-secondary">In Approval Process</div>
+            <div class="card-body">
+                {% for m in in_review %}
+                <div class="card mb-3 shadow-sm border-start border-4 border-info">
+                    <div class="card-body p-3">
+                        <h6 class="card-title fw-bold mb-1">{{ m.title }}</h6>
+                        <div class="small text-muted mb-2">{{ m.code }}</div>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="badge bg-info text-dark" style="font-size:0.7rem;">{{ m.status|replace('_', ' ')|title }}</span>
+                            <a href="/module/{{ m.id }}?role=lecturer" class="btn btn-sm btn-outline-dark stretched-link">View</a>
+                        </div>
+                    </div>
+                </div>
+                {% else %}<p class="text-muted small text-center mt-5">Nothing in review.</p>{% endfor %}
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card h-100 bg-light border-0">
+            <div class="card-header bg-transparent border-0 fw-bold text-uppercase text-secondary">Published Modules</div>
+            <div class="card-body">
+                {% for m in published %}
+                <div class="card mb-3 shadow-sm border-start border-4 border-success">
+                    <div class="card-body p-3">
+                        <h6 class="card-title fw-bold mb-1">{{ m.title }}</h6>
+                        <div class="small text-muted mb-2">{{ m.code }}</div>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="badge bg-success">Active</span>
+                            <a href="/module/{{ m.id }}?role=lecturer" class="btn btn-sm btn-outline-dark stretched-link">View</a>
+                        </div>
+                    </div>
+                </div>
+                {% else %}<p class="text-muted small text-center mt-5">No modules published.</p>{% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+    {% endif %}
+
+<!-- ========================================= -->
+<!-- 3. COORDINATOR / COMMISSION / DEAN        -->
+<!-- ========================================= -->
+{% else %}
+<div class="row mb-4">
+    <div class="col-md-8">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h3><i class="bi bi-inbox-fill"></i> {{ current_role|title }} Dashboard</h3>
+        </div>
+
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Pending Tasks</h5>
+                <span class="badge bg-primary">{{ todo_list|length }} waiting</span>
+            </div>
+            <div class="card-body p-0">
+                {% if todo_list %}
+                <table class="table table-hover mb-0 align-middle">
+                    <thead class="table-light"><tr><th>Code</th><th>Module</th><th>Lecturer</th><th>Status</th><th>Action</th></tr></thead>
+                    <tbody>
+                        {% for m in todo_list %}
+                        <tr>
+                            <td class="font-monospace fw-bold">{{ m.code }}</td>
+                            <td>{{ m.title }}</td>
+                            <td>{% if m.lecturer %}<small>{{ m.lecturer.full_name }}</small>{% endif %}</td>
+                            <td><span class="badge bg-warning text-dark">{{ m.status|replace('_', ' ')|title }}</span></td>
+                            <td><a href="/module/{{ m.id }}?role={{ current_role }}" class="btn btn-sm btn-primary">Review</a></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <div class="text-center py-4 text-muted"><i class="bi bi-check2-all fs-1"></i><p>All caught up!</p></div>
+                {% endif %}
+            </div>
+        </div>
+
+        {% if all_modules %}
+        <div class="card shadow-sm">
+            <div class="card-header bg-light"><h6 class="mb-0">Global Module Repository</h6></div>
+            <div class="card-body p-0" style="max-height: 400px; overflow-y: auto;">
+                <table class="table table-sm table-striped mb-0 small">
+                    <thead><tr><th>Code</th><th>Title</th><th>Status</th></tr></thead>
+                    <tbody>
+                        {% for m in all_modules %}
+                        <tr>
+                            <td>{{ m.code }}</td>
+                            <td>{{ m.title }}</td>
+                            <td><span class="badge {% if m.status=='RELEASED' %}bg-success{% else %}bg-secondary{% endif %}">{{ m.status|replace('_',' ')|title }}</span></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if recent_history is defined %}
+        <div class="card shadow-sm mt-4">
+            <div class="card-header bg-light"><h6 class="mb-0">Recent Decisions (Audit Log)</h6></div>
+            <ul class="list-group list-group-flush small">
+                {% for h in recent_history %}
+                <li class="list-group-item d-flex justify-content-between">
+                    <span>{% if h.decision %}<i class="bi bi-check-circle text-success"></i>{% else %}<i class="bi bi-x-circle text-danger"></i>{% endif %} Mod {{ h.module_id }}: {{ h.comment }}</span>
+                    <span class="text-muted">{{ h.timestamp }}</span>
+                </li>
+                {% else %}
+                <li class="list-group-item text-muted text-center">No decisions.</li>{% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm mb-3">
+            <div class="card-header bg-white fw-bold d-flex justify-content-between align-items-center">
+                Statistics
+                <select class="form-select form-select-sm w-auto" style="font-size: 0.8rem;" onchange="location.href='/?role={{ current_role }}&time_range='+this.value">
+                    <option value="all" {% if selected_time_range == 'all' %}selected{% endif %}>All Time</option>
+                    <option value="1Y" {% if selected_time_range == '1Y' %}selected{% endif %}>Last 1 Year</option>
+                    <option value="6M" {% if selected_time_range == '6M' %}selected{% endif %}>Last 6 Months</option>
+                    <option value="3M" {% if selected_time_range == '3M' %}selected{% endif %}>Last 3 Months</option>
+                    <option value="1M" {% if selected_time_range == '1M' %}selected{% endif %}>Last 1 Month</option>
+                </select>
+            </div>
+            <div class="card-body"><canvas id="statusChart"></canvas></div>
+        </div>
+    </div>
+</div>
+
+    {% if chart_labels %}
+<script>
+        const ctx = document.getElementById('statusChart').getContext('2d');
+        new Chart(ctx, {
+            type: '{% if current_role == "coordinator" %}bar{% else %}doughnut{% endif %}',
+            data: { labels: {{ chart_labels|tojson }}, datasets: [{ label: '# of Modules', data: {{ chart_values|tojson }}, backgroundColor: ['#198754', '#ffc107', '#0dcaf0', '#6c757d'] }] }
+        });
+</script>
+    {% elif chart_data %}
+<script>
+        const ctx = document.getElementById('statusChart').getContext('2d');
+        new Chart(ctx, {
+            type: 'pie',
+            data: { labels: ['Approved', 'Rejected'], datasets: [{ data: {{ chart_data|tojson }}, backgroundColor: ['#198754', '#dc3545'] }] }
+        });
+</script>
+    {% endif %}
+
+{% endif %}
+
+{% endblock %}
